@@ -1,205 +1,245 @@
-const defaultItems = [
+// CampusFind - Lost & Found Management System
+
+const STORAGE_KEY = "campusFindReports";
+
+// Demo records shown when the website is opened for the first time.
+const demoReports = [
   {
-    title: 'Lost Student ID Card',
-    category: 'Cards',
-    status: 'lost',
-    location: 'Library',
-    date: 'Today',
-    description: 'Black student ID with name and photo, last seen near the reading hall.'
+    id: 1,
+    name: "Black Backpack",
+    category: "Accessories",
+    type: "Lost",
+    location: "College Library",
+    description: "Black backpack with a blue keychain.",
+    student: "Demo Student",
+    contact: "student@example.com",
+    date: new Date().toLocaleDateString(),
+    resolved: false
   },
   {
-    title: 'Found Backpack',
-    category: 'Bags',
-    status: 'found',
-    location: 'Hostel Gate',
-    date: 'Yesterday',
-    description: 'Blue backpack with notebooks and a USB cable found near the hostel entrance.'
+    id: 2,
+    name: "Scientific Calculator",
+    category: "Electronics",
+    type: "Found",
+    location: "Computer Lab",
+    description: "A calculator found on the second desk.",
+    student: "Demo Student",
+    contact: "student@example.com",
+    date: new Date().toLocaleDateString(),
+    resolved: false
   },
   {
-    title: 'Missing Water Bottle',
-    category: 'Accessories',
-    status: 'resolved',
-    location: 'Cafeteria',
-    date: '2 days ago',
-    description: 'White steel bottle recovered and returned to the owner after verification.'
-  },
-  {
-    title: 'Found Wallet',
-    category: 'Wallets',
-    status: 'found',
-    location: 'Bus Stop',
-    date: 'Today',
-    description: 'Brown leather wallet with a few cash notes and student ID tucked inside.'
+    id: 3,
+    name: "Blue Notebook",
+    category: "Books & Notes",
+    type: "Lost",
+    location: "Room 204",
+    description: "Blue notebook with handwritten class notes.",
+    student: "Demo Student",
+    contact: "student@example.com",
+    date: new Date().toLocaleDateString(),
+    resolved: false
   }
 ];
 
-const itemGrid = document.querySelector('.item-grid');
-const emptyMessage = document.querySelector('.empty-message');
-const searchInput = document.querySelector('#searchInput');
-const categoryFilter = document.querySelector('#categoryFilter');
-const reportForm = document.querySelector('.report-form');
-const formMessage = document.querySelector('.form-message');
+let reports;
 
-let items = [...defaultItems];
+try {
+  const savedReports = localStorage.getItem(STORAGE_KEY);
+  reports = savedReports ? JSON.parse(savedReports) : demoReports;
 
-function getStatusLabel(status) {
-  switch (status) {
-    case 'lost':
-      return 'Lost';
-    case 'found':
-      return 'Found';
-    case 'resolved':
-      return 'Resolved';
-    default:
-      return 'Unknown';
+  if (!Array.isArray(reports)) {
+    reports = demoReports;
   }
+} catch (error) {
+  reports = demoReports;
 }
 
-function createItemCard(item) {
-  const article = document.createElement('article');
-  article.className = 'item-card';
-
-  const itemTop = document.createElement('div');
-  itemTop.className = 'item-top';
-
-  const category = document.createElement('span');
-  category.className = 'item-category';
-  category.textContent = item.category;
-
-  const status = document.createElement('span');
-  status.className = `status status-${item.status}`;
-  status.textContent = getStatusLabel(item.status);
-
-  const title = document.createElement('h3');
-  title.textContent = item.title;
-
-  const description = document.createElement('p');
-  description.className = 'item-description';
-  description.textContent = item.description;
-
-  const meta = document.createElement('div');
-  meta.className = 'item-meta';
-  meta.innerHTML = `
-    <p><strong>Location:</strong> ${item.location}</p>
-    <p><strong>Reported:</strong> ${item.date}</p>
-  `;
-
-  const actions = document.createElement('div');
-  actions.className = 'card-actions';
-
-  const detailsBtn = document.createElement('button');
-  detailsBtn.type = 'button';
-  detailsBtn.className = 'small-button';
-  detailsBtn.textContent = 'View details';
-
-  const deleteBtn = document.createElement('button');
-  deleteBtn.type = 'button';
-  deleteBtn.className = 'small-button delete';
-  deleteBtn.textContent = 'Remove';
-
-  detailsBtn.addEventListener('click', () => {
-    alert(`${item.title}\n\n${item.description}\n\nLocation: ${item.location}\nStatus: ${getStatusLabel(item.status)}`);
-  });
-
-  deleteBtn.addEventListener('click', () => {
-    items = items.filter(entry => entry.title !== item.title || entry.location !== item.location);
-    renderItems();
-  });
-
-  actions.appendChild(detailsBtn);
-  actions.appendChild(deleteBtn);
-
-  itemTop.appendChild(category);
-  itemTop.appendChild(status);
-
-  article.appendChild(itemTop);
-  article.appendChild(title);
-  article.appendChild(description);
-  article.appendChild(meta);
-  article.appendChild(actions);
-
-  return article;
+// Save reports in browser storage.
+function saveReports() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
 }
 
-function renderItems() {
-  if (!itemGrid) return;
+// Prevent user-entered text from being treated as HTML.
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
+}
 
-  const query = (searchInput?.value || '').trim().toLowerCase();
-  const selectedCategory = categoryFilter?.value || 'all';
+// Update dashboard numbers.
+function updateStatistics() {
+  document.getElementById("totalCount").textContent =
+    reports.length;
 
-  const filteredItems = items.filter(item => {
+  document.getElementById("lostCount").textContent =
+    reports.filter(item => item.type === "Lost" && !item.resolved).length;
+
+  document.getElementById("foundCount").textContent =
+    reports.filter(item => item.type === "Found" && !item.resolved).length;
+
+  document.getElementById("resolvedCount").textContent =
+    reports.filter(item => item.resolved).length;
+}
+
+// Display reports on the page.
+function displayReports() {
+  const grid = document.getElementById("itemGrid");
+  const searchValue =
+    document.getElementById("searchInput").value.toLowerCase().trim();
+  const filterValue =
+    document.getElementById("filterSelect").value;
+
+  const filteredReports = reports.filter(item => {
     const matchesSearch =
-      !query ||
-      item.title.toLowerCase().includes(query) ||
-      item.description.toLowerCase().includes(query) ||
-      item.location.toLowerCase().includes(query);
+      item.name.toLowerCase().includes(searchValue) ||
+      item.location.toLowerCase().includes(searchValue) ||
+      item.category.toLowerCase().includes(searchValue);
 
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    let matchesFilter = true;
 
-    return matchesSearch && matchesCategory;
+    if (filterValue === "Lost") {
+      matchesFilter = item.type === "Lost" && !item.resolved;
+    } else if (filterValue === "Found") {
+      matchesFilter = item.type === "Found" && !item.resolved;
+    } else if (filterValue === "Resolved") {
+      matchesFilter = item.resolved;
+    }
+
+    return matchesSearch && matchesFilter;
   });
 
-  itemGrid.innerHTML = '';
+  grid.innerHTML = filteredReports.map(item => {
+    const status = item.resolved ? "Resolved" : item.type;
+    const statusClass = item.resolved
+      ? "status-resolved"
+      : item.type === "Lost" ? "status-lost" : "status-found";
 
-  if (filteredItems.length === 0) {
-    if (emptyMessage) {
-      emptyMessage.style.display = 'block';
+    return `
+      <article class="item-card">
+        <div class="item-top">
+          <span class="item-category">
+            ${escapeHTML(item.category)}
+          </span>
+          <span class="status ${statusClass}">
+            ${status}
+          </span>
+        </div>
+
+        <h3>${escapeHTML(item.name)}</h3>
+
+        <p class="item-description">
+          ${escapeHTML(item.description)}
+        </p>
+
+        <div class="item-meta">
+          <p>📍 ${escapeHTML(item.location)}</p>
+          <p>👤 ${escapeHTML(item.student)}</p>
+          <p>📅 ${escapeHTML(item.date)}</p>
+          <p>✉ ${escapeHTML(item.contact)}</p>
+        </div>
+
+        <div class="card-actions">
+          ${
+            item.resolved
+              ? ""
+              : `<button class="small-button"
+                   data-action="resolve" data-id="${item.id}">
+                   Mark Resolved
+                 </button>`
+          }
+          <button class="small-button delete"
+            data-action="delete" data-id="${item.id}">
+            Delete
+          </button>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  document.getElementById("emptyMessage").style.display =
+    filteredReports.length === 0 ? "block" : "none";
+
+  updateStatistics();
+}
+
+// Handle new report submission.
+document.getElementById("reportForm").addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  const newReport = {
+    id: Date.now(),
+    name: document.getElementById("itemName").value.trim(),
+    category: document.getElementById("itemCategory").value,
+    type: document.getElementById("itemType").value,
+    location: document.getElementById("itemLocation").value.trim(),
+    description: document.getElementById("itemDescription").value.trim(),
+    student: document.getElementById("studentName").value.trim(),
+    contact: document.getElementById("studentContact").value.trim(),
+    date: new Date().toLocaleDateString(),
+    resolved: false
+  };
+
+  reports.unshift(newReport);
+  saveReports();
+  displayReports();
+
+  this.reset();
+
+  document.getElementById("formMessage").textContent =
+    "Your report has been submitted successfully!";
+
+  document.getElementById("items").scrollIntoView({
+    behavior: "smooth"
+  });
+});
+
+// Search reports.
+document.getElementById("searchInput").addEventListener(
+  "input", displayReports
+);
+
+// Filter reports.
+document.getElementById("filterSelect").addEventListener(
+  "change", displayReports
+);
+
+// Handle Resolve and Delete buttons.
+document.getElementById("itemGrid").addEventListener("click", function(event) {
+  const button = event.target.closest("button[data-action]");
+
+  if (!button) return;
+
+  const id = Number(button.dataset.id);
+  const action = button.dataset.action;
+
+  if (action === "resolve") {
+    const item = reports.find(report => report.id === id);
+
+    if (item) {
+      item.resolved = true;
+      saveReports();
+      displayReports();
     }
-    return;
   }
 
-  if (emptyMessage) {
-    emptyMessage.style.display = 'none';
+  if (action === "delete") {
+    const confirmed = confirm(
+      "Are you sure you want to delete this report?"
+    );
+
+    if (confirmed) {
+      reports = reports.filter(report => report.id !== id);
+      saveReports();
+      displayReports();
+    }
   }
+});
 
-  filteredItems.forEach(item => {
-    itemGrid.appendChild(createItemCard(item));
-  });
-}
-
-if (searchInput) {
-  searchInput.addEventListener('input', renderItems);
-}
-
-if (categoryFilter) {
-  categoryFilter.addEventListener('change', renderItems);
-}
-
-if (reportForm) {
-  reportForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-
-    const formData = new FormData(reportForm);
-    const title = (formData.get('title') || '').toString().trim();
-    const category = (formData.get('category') || '').toString().trim();
-    const status = (formData.get('status') || 'lost').toString().trim();
-    const location = (formData.get('location') || '').toString().trim();
-    const description = (formData.get('description') || '').toString().trim();
-
-    if (!title || !category || !location || !description) {
-      if (formMessage) {
-        formMessage.textContent = 'Please fill in all the required fields.';
-      }
-      return;
-    }
-
-    const newItem = {
-      title,
-      category,
-      status,
-      location,
-      date: 'Just now',
-      description
-    };
-
-    items.unshift(newItem);
-    renderItems();
-    reportForm.reset();
-
-    if (formMessage) {
-      formMessage.textContent = 'Report submitted successfully.';
-    }
-  });
-}
-
-renderItems();
+// Save initial demo records and show the website.
+saveReports();
+displayReports();
